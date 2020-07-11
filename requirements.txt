@@ -6,3 +6,4 @@ np-utils
 regex
 requests
 simplejson
+config

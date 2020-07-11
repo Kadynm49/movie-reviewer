@@ -19,7 +19,6 @@ import random
 from flask import Flask
 from flask import render_template
 from flask import request
-from form import MovieForm
 from config import Config
 
 app = Flask(__name__)
