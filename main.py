@@ -18,23 +18,19 @@ import random
 
 from flask import Flask
 from flask import render_template
+from flask import request
 from form import MovieForm
 from config import Config
 
 app = Flask(__name__)
 app.config.from_object(Config)
 
-@app.route("/", methods=["POST", "GET"])
-def movie_form_handler():
-    form = MovieForm()
+@app.route("/", methods=["POST"])
+def review_request_handler():
+    body = request.json
+    return json.dumps(main(body["title"], body["reviewType"], body["model"]))
 
-    if form.validate_on_submit():
-        form.review = main(form.title.data, form.review_type.data)
-
-    return render_template('form.html', title='Movie-Reviewer', form=form)
-
-def main(title, review_type): 
-    # Get movie from user
+def main(title, review_type, model): 
 
     # Find imdb title key for this movie using the omdb API
     omdb_key = "a542cac9"
@@ -42,23 +38,18 @@ def main(title, review_type):
     t = "&t=" + title
     response = requests.get(link + t)
     if response.status_code != 200:
-        print("The movie you entered is not in IMDB")
-        exit()
+        print("OMDBAPI is down, sorry! :'(")
     responseJson = json.loads(response.text)
     imdbID = ""
     if "imdbID" in responseJson:
         imdbID = responseJson["imdbID"]
+        title = responseJson["Title"]
     else: 
-        print("Invalid title, please try a different movie or show.")
-        exit()
+        return "Invalid title, please try a different movie or show."
 
-    # Get review type from user
-    print("Enter the type of review would you like to generate (space seperated): \"p\" - positive, \"n\" - negative, \"a\" - average")
     review_types = [review_type]
     
-    # Get desired models from user
-    print("Enter the models would you like to run to generate the reviews (space seperated): \"1\" - Trigram, \"2\" - Markov Chain, \"3\" - Neural Network")
-    models = ["1"]
+    models = ["1" if model == "trigram" else "2"]
     
     # Get imdb user reviews page
     URL = "https://www.imdb.com/title/" + imdbID + "/reviews/"
@@ -78,12 +69,10 @@ def main(title, review_type):
     for e in soup.find_all("a"):
         e.extract()
 
-
     # Find load more button
     load_more_button = soup.find(class_ = "load-more-data")
     if ("data-key" not in load_more_button.attrs):
-        print("IMDB has no user reviews for this. See for yourself:", URL)
-        exit()
+        return "IMDB has no user reviews for this. See for yourself: " + URL
 
     reviews = []
     review_titles = []
@@ -208,7 +197,7 @@ def main(title, review_type):
                     print("==================================\nGenerating average review with markov model algorithm 1\n")
                     # create_review_with_markov_chains(reviews_string.split(), avg_review_len, title, avg_score)
                     # print("algorithm 2:")
-                    create_review_with_markov_chains_2(reviews_string.split(), avg_review_len, title, avg_score)
+                    return create_review_with_markov_chains_2(reviews_string.split(), avg_review_len, title, avg_score)
                 elif review_type == "p":
                     print("==================================\nGenerating positive review with markov model algorithm 1\n")
                     # create_review_with_markov_chains(positive_reviews_string.split(), avg_positive_review_len, title, avg_positive_score)
@@ -236,7 +225,6 @@ def main(title, review_type):
                     print(review_type, "is not a valid option for review type.")
         else:
             print(model, "is not a valid option for language model.")
-
 
 
 ##########################################
@@ -286,7 +274,7 @@ def create_review_with_markov_chains(corpus, review_len, title, avg_score):
 # Second markov chain method 
 # Source: https://www.jeffcarp.com/posts/2019/markov-chain-python/
 def create_review_with_markov_chains_2(corpus, review_len, title, avg_score):
-    print("I rate " + title + " %.1f/10\n" % avg_score)
+    rating = "I rate " + title + " %.1f/10\n\n" % avg_score
     # Create graph
     markov_graph = defaultdict(lambda: defaultdict(int))
 
@@ -295,7 +283,7 @@ def create_review_with_markov_chains_2(corpus, review_len, title, avg_score):
         markov_graph[last_word][word] += 1
         last_word = word
     
-    print(' '.join(walk_graph(markov_graph, distance=review_len)), '\n')
+    return rating + '.\n' + ' '.join(walk_graph(markov_graph, distance=review_len)), '\n'
 
 # Source: https://www.jeffcarp.com/posts/2019/markov-chain-python/
 def walk_graph(graph, distance=5, start_node=None):
@@ -325,7 +313,7 @@ def walk_graph(graph, distance=5, start_node=None):
 # N grams generated text source 
 # self made script from assn2
 def create_review_with_trigrams(corpus, review_len, title, avg_score):
-    print("I rate " + title + " %.1f/10\n" % avg_score)
+    rating = "I rate " + title + " %.1f/10\n\n" % avg_score
     
     trigrams = list(ngrams(corpus, 3))
     unsmoothed_trigrams = Counter(ngrams(corpus, 3))
@@ -380,7 +368,7 @@ def create_review_with_trigrams(corpus, review_len, title, avg_score):
         if word_count > review_len:
             break
     
-    return review
+    return rating + '.\n' +  review
 
 ##########################################
 # Neural network text generation 
