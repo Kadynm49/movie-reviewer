@@ -1,0 +1,8 @@
+beautifulsoup4
+Flask
+nltk
+numpy
+np-utils
+regex
+requests
+simplejson
