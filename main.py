@@ -43,13 +43,13 @@ def main(title, review_type, model):
     if "imdbID" in responseJson:
         imdbID = responseJson["imdbID"]
         title = responseJson["Title"]
-    else: 
+    else:
         return "Invalid title, please try a different movie or show."
 
     review_types = [review_type]
-    
+
     models = ["1" if model == "trigram" else "2"]
-    
+
     # Get imdb user reviews page
     URL = "https://www.imdb.com/title/" + imdbID + "/reviews/"
     load_more_url = "https://www.imdb.com/title/" + imdbID + "/reviews/_ajax?paginationKey="
@@ -70,8 +70,6 @@ def main(title, review_type, model):
 
     # Find load more button
     load_more_button = soup.find(class_ = "load-more-data")
-    if ("data-key" not in load_more_button.attrs):
-        return "IMDB has no user reviews for this. See for yourself: " + URL
 
     reviews = []
     review_titles = []
@@ -86,12 +84,12 @@ def main(title, review_type, model):
     avg_positive_score = 0
 
     # Get reviews by loading all pages of user reviews
-    # IMDB uses a "Load More" button to retrieve 25 
-    # reviews at a time, so we must find the paginationKey 
-    # for each page to get the next 25 reviews and append 
-    # those reviews to the list. Stop when there is no 
+    # IMDB uses a "Load More" button to retrieve 25
+    # reviews at a time, so we must find the paginationKey
+    # for each page to get the next 25 reviews and append
+    # those reviews to the list. Stop when there is no
     # longer a "Load More" button
-    
+
     print ("\n==================================\nFetching reviews from IMDB\n==================================")
     while (load_more_button != None):
         review_containers = soup.find_all("div", class_="lister-item-content")
@@ -107,20 +105,20 @@ def main(title, review_type, model):
                         avg_negative_score += score
                     avg_score += score
 
-            # Get review and review"s title
+            # Get review and review's title
             for content in review_container.contents:
                 if type(content) == Tag \
                     and content["class"][0] == "content" \
                     and len(content.contents) > 0 \
                     and len(content.contents[1].contents) > 0 \
                     and type(content.contents[1].contents[0]) == NavigableString: # failed on this line for Avengers: Endgame
-                    
+
                     review = None
                     if len(content.contents[1].contents) == 1:
                         review = content.contents[1].contents[0]
                     else:
-                        review = " ".join(content.contents[1].contents) 
-                    
+                        review = " ".join(content.contents[1].contents)
+
                     if (score is not None and score >= 5):
                         positive_reviews.append(review)
                     elif (score is not None):
@@ -133,6 +131,12 @@ def main(title, review_type, model):
                     elif score is not None:
                         negative_review_titles.append(content.contents[0])
                     review_titles.append(content.contents[0])
+
+        if ("data-key" not in load_more_button.attrs):
+            if (len(reviews) == 0):
+                raise Exception("No reviews for this movie: " + URL)
+            else:
+                break
 
         # Get url for next 25 reviews and load them in
         URL = load_more_url + load_more_button["data-key"]
@@ -157,7 +161,7 @@ def main(title, review_type, model):
     avg_score /= len(reviews)
     avg_positive_score /= len(positive_reviews)
     avg_negative_score /= len(negative_reviews)
-    
+
     # Calculate average review length
     avg_review_len = 0
     avg_positive_review_len = 0
@@ -196,32 +200,41 @@ def main(title, review_type, model):
                     print("==================================\nGenerating average review with markov model algorithm 1\n")
                     # create_review_with_markov_chains(reviews_string.split(), avg_review_len, title, avg_score)
                     # print("algorithm 2:")
-                    return create_review_with_markov_chains_2(reviews_string.split(), avg_review_len, title, avg_score)
+                    try:
+                        return create_review_with_markov_chains_2(reviews_string.split(), avg_review_len, title, avg_score)
+                    except:
+                        raise
                 elif review_type == "p":
                     print("==================================\nGenerating positive review with markov model algorithm 1\n")
                     # create_review_with_markov_chains(positive_reviews_string.split(), avg_positive_review_len, title, avg_positive_score)
                     # print("algorithm 2:")
-                    create_review_with_markov_chains_2(positive_reviews_string.split(), avg_positive_review_len, title, avg_positive_score)
+                    try:
+                        return create_review_with_markov_chains_2(positive_reviews_string.split(), avg_positive_review_len, title, avg_positive_score)
+                    except:
+                        raise
                 elif review_type == "n":
                     print("==================================\nGenerating negative review with markov model algorithm 1\n")
                     # create_review_with_markov_chains(negative_reviews_string.split(), avg_negative_review_len, title, avg_negative_score)
                     # print("algorithm 2:")
-                    create_review_with_markov_chains_2(negative_reviews_string.split(), avg_negative_review_len, title, avg_negative_score)
+                    try:
+                        return create_review_with_markov_chains_2(negative_reviews_string.split(), avg_negative_review_len, title, avg_negative_score)
+                    except:
+                        raise
                 else:
                     print(review_type, "is not a valid option for review type.")
-        elif (model == "3"):
-            for review_type in review_types:
-                if review_type == "a":
-                    print("==================================\nGenerating average review with neural network model\n")
-                    create_review_with_tensorflow(reviews, title, avg_score)
-                elif review_type == "p":
-                    print("==================================\nGenerating positive review with neural network model\n")
-                    create_review_with_tensorflow(positive_reviews, title, avg_positive_score)
-                elif review_type == "n":
-                    print("==================================\nGenerating negative review with neural network model\n")
-                    create_review_with_tensorflow(negative_reviews, title, avg_negative_score)
-                else:
-                    print(review_type, "is not a valid option for review type.")
+        # elif (model == "3"):
+        #     for review_type in review_types:
+        #         if review_type == "a":
+        #             print("==================================\nGenerating average review with neural network model\n")
+        #             create_review_with_tensorflow(reviews, title, avg_score)
+        #         elif review_type == "p":
+        #             print("==================================\nGenerating positive review with neural network model\n")
+        #             create_review_with_tensorflow(positive_reviews, title, avg_positive_score)
+        #         elif review_type == "n":
+        #             print("==================================\nGenerating negative review with neural network model\n")
+        #             create_review_with_tensorflow(negative_reviews, title, avg_negative_score)
+        #         else:
+        #             print(review_type, "is not a valid option for review type.")
         else:
             print(model, "is not a valid option for language model.")
 
